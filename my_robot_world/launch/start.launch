@@ -1,0 +1,16 @@
+<launch>
+  <!-- Gazebo 실행 (한 번만) -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find my_robot_world)/worlds/tomato_world.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+  </include>
+
+  <!-- UR3e 로봇 모델 로드 -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find ur_description)/urdf/ur3e.xacro'"/>
+  <node name="spawn_ur3e_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -model ur3e -param robot_description -x 0 -y 0 -z 0"/>
+
+  <!-- 로봇 상태 퍼블리셔 -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+</launch>

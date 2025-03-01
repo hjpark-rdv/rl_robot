@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="tomato_world">
+    <!-- 조명 -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- 바닥 -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 토마토 (간단한 구체로 표현) -->
+    <model name="tomato">
+      <pose>0.5 0.5 0.5 0 0 0</pose> <!-- x, y, z 위치 -->
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.05</radius> <!-- 토마토 크기 -->
+            </sphere>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Red</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 장애물 (줄기, 원기둥으로 표현) -->
+    <model name="stem">
+      <pose>0.4 0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.01</radius>
+              <length>0.5</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Green</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>
