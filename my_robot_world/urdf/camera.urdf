@@ -1,0 +1,8 @@
+<plugin name="camera_plugin" filename="libgazebo_ros_depth_camera.so">
+  <cameraName>rgbd_camera</cameraName> <!-- 추가 -->
+  <ros>
+    <namespace>/camera</namespace>
+    <remapping>image_raw:=image</remapping>
+    <remapping>depth:=depth</remapping>
+  </ros>
+</plugin>

@@ -1,5 +1,5 @@
 <launch>
-  <!-- Gazebo 실행 (한 번만) -->
+  <!-- Gazebo 실행 -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find my_robot_world)/worlds/tomato_world.world"/>
     <arg name="paused" value="false"/>
@@ -7,10 +7,24 @@
     <arg name="gui" value="true"/>
   </include>
 
-  <!-- UR3e 로봇 모델 로드 -->
-  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find ur_description)/urdf/ur3e.xacro'"/>
-  <node name="spawn_ur3e_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -model ur3e -param robot_description -x 0 -y 0 -z 0"/>
+  <!-- PID 게인 로드 -->
+  <!-- <rosparam file="$(find my_robot_world)/config/ur3e_pid_gains.yaml" command="load"/> -->
+  <!-- controller를 로드하면서 PID게인 로드는 주석처리함-->
+  <rosparam file="$(find my_robot_world)/config/ur3e_controllers.yaml" command="load"/>
 
+  <!-- UR3e 로봇 모델 로드 -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find my_robot_world)/urdf/tomato_robot.xacro'"/>
+  <!-- <node name="spawn_ur3e_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -model ur3e -param robot_description -x 0 -y 0 -z 0"/> -->
+  <!-- <node name="spawn_ur3e_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -model ur3e -param robot_description -x 0 -y 0 -z 0.1"/> -->
+  <node name="spawn_ur3e_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -model ur3e -param robot_description -x 0 -y 0 -z 0.05 "/>
   <!-- 로봇 상태 퍼블리셔 -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="joint_state_controller eff_joint_traj_controller --namespace=/ur3e"/>
+
+  <!-- RGBD 카메라 추가 -->
+  <!-- <param name="camera_description" textfile="$(find my_robot_world)/urdf/camera.urdf"/> -->
+  <!-- <node name="spawn_camera" pkg="gazebo_ros" type="spawn_model" args="-urdf -model camera -param camera_description -x 0 -y 0 -z 0"/> -->
+  <!-- 초기 자세 설정 노드 -->
+  <node name="set_initial_pose" pkg="my_robot_world" type="set_initial_pose.py" output="screen"/>
 </launch>
