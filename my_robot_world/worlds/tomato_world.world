@@ -1,53 +1,57 @@
 <?xml version="1.0"?>
 <sdf version="1.6">
   <world name="tomato_world">
-    <!-- 조명 -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_update_rate>1000</real_time_update_rate>
+      <real_time_factor>1.0</real_time_factor>
+      <ode>
+        <solver>
+          <type>quick</type>
+          <iters>50</iters>
+        </solver>
+        <constraints>
+          <cfm>1e-5</cfm>
+          <erp>0.8</erp>
+        </constraints>
+      </ode>
+    </physics>
     <include>
       <uri>model://sun</uri>
     </include>
-
-    <!-- 바닥 -->
     <include>
       <uri>model://ground_plane</uri>
     </include>
-
-    <!-- 토마토 (간단한 구체로 표현) -->
     <model name="tomato">
-      <pose>0.5 0.5 0.5 0 0 0</pose> <!-- x, y, z 위치 -->
-      <link name="link">
-        <visual name="visual">
+      <static>true</static>
+      <pose>0.5 0.5 0.5 0 0 0</pose>
+      <link name="tomato_link">
+        <visual name="tomato_visual">
           <geometry>
             <sphere>
-              <radius>0.05</radius> <!-- 토마토 크기 -->
+              <radius>0.02</radius> <!-- 2cm로 변경 -->
             </sphere>
           </geometry>
           <material>
             <script>
               <uri>file://media/materials/scripts/gazebo.material</uri>
-              <name>Gazebo/Red</name>
+              <name>Gazebo/RedGlow</name>
             </script>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
           </material>
         </visual>
-      </link>
-    </model>
-
-    <!-- 장애물 (줄기, 원기둥으로 표현) -->
-    <model name="stem">
-      <pose>0.4 0.5 0.25 0 0 0</pose>
-      <link name="link">
-        <visual name="visual">
+        <collision name="tomato_collision">
           <geometry>
-            <cylinder>
-              <radius>0.01</radius>
-              <length>0.5</length>
-            </cylinder>
+            <sphere>
+              <radius>0.02</radius> <!-- 2cm로 변경 -->
+            </sphere>
           </geometry>
-          <material>
-            <script>
-              <name>Gazebo/Green</name>
-            </script>
-          </material>
-        </visual>
+        </collision>
+        <inertial>
+          <mass value="0.01"/> <!-- 크기 줄임에 맞춰 질량 감소 -->
+          <inertia ixx="0.000008" ixy="0" ixz="0" iyy="0.000008" iyz="0" izz="0.000008"/> <!-- 관성 조정 -->
+        </inertial>
       </link>
     </model>
   </world>

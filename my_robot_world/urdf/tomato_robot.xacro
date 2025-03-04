@@ -1,20 +1,20 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur3e_robot">
   <xacro:include filename="$(find ur_description)/urdf/inc/ur3e_macro.xacro"/>
-  <xacro:ur3e_robot prefix="" transmission_hw_interface="hardware_interface/EffortJointInterface"/>
+  <xacro:ur3e_robot prefix="" transmission_hw_interface="hardware_interface/EffortJointInterface"/>  
+
 
   <!-- 더미 월드 링크 -->
   <link name="world_link"/>
 
-  <!-- 베이스 플레이트 링크 -->
-  <!-- 베이스 플레이트 링크 -->
+  <!-- 베이스 플레이트 링크 (무겁고 단단한 재질) -->
   <link name="base_plate">
     <visual>
       <geometry>
         <box size="1.0 1.0 0.05"/>
       </geometry>
-      <material name="gray">
-        <color rgba="0.5 0.5 0.5 1.0"/>
+      <material name="steel">
+        <color rgba="0.3 0.3 0.3 1.0"/>
       </material>
     </visual>
     <collision>
@@ -24,39 +24,69 @@
       <surface>
         <friction>
           <ode>
-            <mu>1.0</mu> <!-- 마찰 계수 증가 -->
+            <mu>1.0</mu>
             <mu2>1.0</mu2>
           </ode>
         </friction>
         <contact>
           <ode>
-            <kp>1e6</kp> <!-- 강성 증가 -->
-            <kd>1e3</kd> <!-- 댐핑 증가 -->
+            <kp>1e8</kp>
+            <kd>1e4</kd>
           </ode>
         </contact>
       </surface>
     </collision>
     <inertial>
-      <mass value="100.0"/> <!-- 질량 증가로 안정성 강화 -->
-      <inertia ixx="8.354" ixy="0.0" ixz="0.0" iyy="8.354" iyz="0.0" izz="16.667"/> <!-- 질량 100kg 기준 재계산 -->
+      <mass value="1000.0"/>
+      <inertia ixx="83.354" ixy="0.0" ixz="0.0" iyy="83.354" iyz="0.0" izz="166.667"/>
     </inertial>
   </link>
 
   <!-- world_link와 base_plate 연결 -->
-  <joint name="world_to_base" type="fixed">
+  <joint name="world_to_base_plate" type="fixed">
     <parent link="world_link"/>
     <child link="base_plate"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
+  
+
   <!-- base_plate와 base_link 연결 -->
-  <joint name="base_to_plate" type="fixed">
+  <joint name="base_plate_to_base_link" type="fixed">
     <parent link="base_plate"/>
     <child link="base_link"/>
     <origin xyz="0 0 0.025" rpy="0 0 0"/>
   </joint>
 
-  <!-- 기존 카메라 설정 -->
+  <!-- 스탠드 링크 -->
+  <link name="stand_base">
+    <visual>
+      <geometry>
+        <box size="0.02 0.02 0.5"/> <!-- 1m 높이 스탠드 -->
+      </geometry>
+      <material name="silver">
+        <color rgba="0.75 0.75 0.75 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.02 0.02 0.5"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.416" ixy="0.0" ixz="0.0" iyy="0.416" iyz="0.0" izz="0.833"/>
+    </inertial>
+  </link>
+
+  <!-- world_link와 stand_base 연결 -->
+  <joint name="world_to_stand" type="fixed">
+    <parent link="world_link"/>
+    <child link="stand_base"/>
+    <origin xyz="0.0 0.52 0.3" rpy="0 0 0"/> <!-- 로봇 옆으로 이동 -->
+  </joint>
+
+  <!-- 카메라 링크 -->
   <link name="camera_link">
     <visual>
       <geometry>
@@ -65,12 +95,24 @@
     </visual>
   </link>
 
-  <joint name="camera_joint" type="fixed">
-    <parent link="tool0"/>
+  <joint name="stand_to_camera" type="fixed">
+    <parent link="stand_base"/>
     <child link="camera_link"/>
-    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <origin xyz="0 0.0 0.25" rpy="0 0.4 -0.7"/> <!-- 스탠드 위쪽 -->
   </joint>
 
+<!-- 새로운 depth_link 정의 -->
+  <link name="depth_link"/>
+
+  <!-- camera_link와 depth_link 연결 -->
+  <joint name="camera_to_depth" type="fixed">
+    <parent link="camera_link"/>
+    <child link="depth_link"/>
+    <origin xyz="0.1 0 0.1" rpy="-1.57 0 -1.57"/> <!-- 기본적으로 동일한 위치와 방향 -->
+  </joint>
+
+
+  <!-- Gazebo 설정 -->
   <gazebo reference="camera_link">
     <sensor type="depth" name="rgbd_camera">
       <update_rate>30.0</update_rate>
@@ -88,13 +130,18 @@
           </range>
         </depth>
       </camera>
-      <plugin name="camera_plugin" filename="libgazebo_ros_depth_camera.so">
-        <cameraName>rgbd_camera</cameraName>
-        <ros>
-          <namespace>/camera</namespace>
-          <remapping>image_raw:=image</remapping>
-          <remapping>depth:=depth</remapping>
-        </ros>
+      <plugin name="depth_camera_controller" filename="libgazebo_ros_openni_kinect.so">
+        <baseline>0.1</baseline>
+        <alwaysOn>true</alwaysOn>
+        <updateRate>30.0</updateRate>
+        <cameraName>camera</cameraName>
+        <frameName>depth_link</frameName>
+        <pointCloudCutoff>0.1</pointCloudCutoff>
+        <distortionK1>0.0</distortionK1>
+        <distortionK2>0.0</distortionK2>
+        <distortionK3>0.0</distortionK3>
+        <distortionT1>0.0</distortionT1>
+        <distortionT2>0.0</distortionT2>
       </plugin>
     </sensor>
   </gazebo>
