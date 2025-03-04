@@ -11,7 +11,7 @@ def set_initial_pose():
     msg.joint_names = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 
                        'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
     point = JointTrajectoryPoint()
-    point.positions = [0.0, -1.57, 1.57, 0.0, 0.0, 0.0]  # 똑바로 서는 자세
+    point.positions = [0.0, -2.57, 1.57, 0.0, 1.57, 0.0]  # 똑바로 서는 자세
     point.time_from_start = rospy.Duration(2.0)
     msg.points.append(point)
 

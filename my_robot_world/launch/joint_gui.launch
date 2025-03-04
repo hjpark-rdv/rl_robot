@@ -1,0 +1,6 @@
+<launch>
+  <!-- joint_state_publisher_gui 실행 -->
+  <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" name="joint_state_publisher_gui">
+    <remap from="/joint_states" to="/ur3e/joint_states"/>
+  </node>
+</launch>

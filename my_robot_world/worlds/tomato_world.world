@@ -23,9 +23,10 @@
       <uri>model://ground_plane</uri>
     </include>
     <model name="tomato">
-      <static>true</static>
+      <static>false</static>
       <pose>0.5 0.5 0.5 0 0 0</pose>
       <link name="tomato_link">
+        <gravity>0</gravity> <!-- 중력 비활성화 -->
         <visual name="tomato_visual">
           <geometry>
             <sphere>
