@@ -108,10 +108,58 @@
   <joint name="camera_to_depth" type="fixed">
     <parent link="camera_link"/>
     <child link="depth_link"/>
-    <origin xyz="0.1 0 0.1" rpy="-1.57 0 -1.57"/> <!-- 기본적으로 동일한 위치와 방향 -->
+    <origin xyz="0.0 0 0.0" rpy="-1.57 0 -1.57"/> <!-- 기본적으로 동일한 위치와 방향 -->
   </joint>
 
+  <!-- 관 링크 (gripper_tube) 정의 -->
+  <link name="gripper_tube">
+    <visual>
+      <geometry>
+        <cylinder radius="0.02" length="0.1"/> <!-- 길이 10cm로 변경 -->
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/> <!-- 중심을 관의 중간에 (0.1m / 2) -->
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.02" length="0.1"/> <!-- 길이 10cm로 변경 -->
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.25"/> <!-- 질량 절반으로 감소 (비례 조정) -->
+      <inertia ixx="0.0005" ixy="0.0" ixz="0.0" iyy="0.0005" iyz="0.0" izz="0.00025"/>
+    </inertial>
+  </link>
 
+  <!-- tool0와 gripper_tube 연결 -->
+  <joint name="tool0_to_gripper_tube" type="fixed">
+    <parent link="tool0"/>
+    <child link="gripper_tube"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 새로운 end_effector 링크 정의 (더미 링크) -->
+  <link name="end_effector">
+    <visual> <!-- 디버깅용 시각화 -->
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- gripper_tube와 end_effector 연결 -->
+  <joint name="gripper_tube_to_end_effector" type="fixed">
+    <parent link="gripper_tube"/>
+    <child link="end_effector"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/> <!-- 관 끝부분 (길이 10cm) -->
+  </joint>
+  
   <!-- Gazebo 설정 -->
   <gazebo reference="camera_link">
     <sensor type="depth" name="rgbd_camera">
