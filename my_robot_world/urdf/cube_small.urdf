@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<robot name="cube_small">
+  <!-- 재질 정의 -->
+  <material name="red">
+    <color rgba="1.0 0.0 0.0 1.0"/> <!-- 빨간색 큐브 -->
+  </material>
+
+  <!-- 링크 정의: 큐브 본체 -->
+  <link name="cube_base">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.05"/> <!-- 5cm 크기의 큐브 -->
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.05"/> <!-- 충돌 모델도 동일한 크기 -->
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/> <!-- 질량 100g -->
+      <inertia ixx="0.00004167" ixy="0" ixz="0" iyy="0.00004167" iyz="0" izz="0.00004167"/>
+      <!-- 관성 텐서: 작은 큐브에 맞게 계산 (I = 1/12 * m * (a^2 + b^2)) -->
+    </inertial>
+  </link>
+
+  <!-- 고정 조인트 (월드에 고정되지 않도록 독립 객체로 유지) -->
+  <!-- 조인트는 필요 시 추가 가능 -->
+</robot>
