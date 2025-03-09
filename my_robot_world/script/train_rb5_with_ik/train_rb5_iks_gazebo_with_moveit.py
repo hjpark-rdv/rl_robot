@@ -16,7 +16,7 @@ from geometry_msgs.msg import Pose
 from std_srvs.srv import Empty
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 import tf
 
@@ -31,9 +31,11 @@ class CustomRobotEnv(gym.Env):
         moveit_commander.roscpp_initialize(sys.argv)
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
-        self.move_group = moveit_commander.MoveGroupCommander("RB5")  # MoveIt 설정에 맞게 조정
+        self.move_group = moveit_commander.MoveGroupCommander("RB5")
         self.move_group.set_planner_id("RRTConnect")
+        self.move_group.set_end_effector_link("end_effector")  # 엔드 이펙터 명시
         self.tf_listener = tf.TransformListener()
+
         # Gazebo 서비스
         self.spawn_model = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
         self.delete_model = rospy.ServiceProxy('/gazebo/delete_model', DeleteModel)
@@ -66,8 +68,8 @@ class CustomRobotEnv(gym.Env):
         self.step_count = 0
         self.max_steps = 1000
 
-        # 행동/관찰 공간 (PPO 학습 비활성화, MoveIt 직접 제어로 전환)
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)  # 사용 안 함
+        # 행동/관찰 공간
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)  # 엔드 이펙터 위치 변화량
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
 
         # SDF 모델
@@ -78,7 +80,7 @@ class CustomRobotEnv(gym.Env):
             <link name="base_link">
               <visual name="visual">
                 <geometry>
-                  <sphere><radius>0.02</radius></sphere>
+                  <sphere><radius>0.01</radius></sphere>
                 </geometry>
                 <material>
                   <diffuse>1 0 0 1</diffuse>
@@ -86,7 +88,7 @@ class CustomRobotEnv(gym.Env):
               </visual>
               <collision name="collision">
                 <geometry>
-                  <sphere><radius>0.02</radius></sphere>
+                  <sphere><radius>0.01</radius></sphere>
                 </geometry>
               </collision>
             </link>
@@ -101,7 +103,6 @@ class CustomRobotEnv(gym.Env):
         self.ee_pose = msg.position[:6]
 
     def create_target(self):
-        # 로봇 작업 공간 내에서 목표 생성 (범위 조정)
         target_pos = np.random.uniform([0.2, -0.2, 0.3], [0.4, 0.2, 0.6]).astype(np.float32)
         pose = Pose()
         pose.position.x, pose.position.y, pose.position.z = target_pos
@@ -163,16 +164,16 @@ class CustomRobotEnv(gym.Env):
             self.tf_listener.waitForTransform("/world", "/end_effector", rospy.Time(0), rospy.Duration(0.1))
             (trans, _) = self.tf_listener.lookupTransform("/world", "/end_effector", rospy.Time(0))
             return np.array(trans, dtype=np.float32)
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+            rospy.logwarn(f"TF lookup failed: {e}")
             return np.array([0.5, 0.0, 0.5], dtype=np.float32)
+
     def _get_observation(self):
         if self.ee_pose is None:
             rospy.logwarn("Joint states not available")
             return np.zeros(12, dtype=np.float32)
         
         current_joints = np.array(self.ee_pose, dtype=np.float32)
-        # ee_pose = self.move_group.get_current_pose().pose
-        # ee_pos = np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z], dtype=np.float32)
         ee_pos = self._get_end_effector_pos()
         
         if self.target_pos is None or self.obstacle_positions is None:
@@ -191,15 +192,21 @@ class CustomRobotEnv(gym.Env):
             observation = self._get_observation()
             return observation, -50, False, True, {"reason": "No joint states"}
 
-        # 목표를 self.target_pos로 직접 설정
-        self.move_group.set_position_target(self.target_pos.tolist())
+        # 현재 엔드 이펙터 위치
+        current_ee_pos = self._get_end_effector_pos()
+        
+        # PPO 행동: 엔드 이펙터 위치 변화량
+        delta_pos = action * 0.05  # 스케일링
+        target_ee_pos = current_ee_pos + delta_pos
+
+        # MoveIt으로 IK 계산 및 실행
+        self.move_group.set_position_target(target_ee_pos.tolist())
         success = self.move_group.go(wait=True)
         self.move_group.stop()
         self.move_group.clear_pose_targets()
 
         if not success:
-            rospy.logwarn("MoveIt failed to plan or execute to target")
-            # 초기 위치로 복귀 시도
+            rospy.logwarn("MoveIt failed to plan or execute")
             traj = JointTrajectory()
             traj.joint_names = self.joint_names
             point = JointTrajectoryPoint()
@@ -214,11 +221,11 @@ class CustomRobotEnv(gym.Env):
         if observation is None:
             return np.zeros(12, dtype=np.float32), -50, False, True, {"reason": "Observation failed"}
 
-        ee_pose = self.move_group.get_current_pose().pose
-        ee_pos = np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z], dtype=np.float32)
+        ee_pos = self._get_end_effector_pos()
         distance_to_target = np.linalg.norm(ee_pos - self.target_pos)
         min_obstacle_distance = min([np.linalg.norm(ee_pos - obs) for obs in self.obstacle_positions])
         
+        # 보상 계산
         reward = float(-distance_to_target)
         if min_obstacle_distance < 0.06:
             reward -= 10
@@ -226,13 +233,14 @@ class CustomRobotEnv(gym.Env):
             reward += 100
 
         terminated = bool(distance_to_target < 0.05)
-        truncated = bool(min_obstacle_distance < 0.06 or self.step_count >= self.max_steps)
-        info = {}
+        truncated = bool(self.step_count >= self.max_steps or min_obstacle_distance < 0.06)
+        info = {"ee_pos": ee_pos, "target_pos": self.target_pos}
 
         if self.step_count >= self.max_steps:
             info["reason"] = "Max steps exceeded"
 
         self.step_count = 0 if terminated or truncated else self.step_count
+        print(f"Step {self.step_count}: EE Pos = {ee_pos}, Target = {self.target_pos}, Distance = {distance_to_target}")
         return observation, reward, terminated, truncated, info
 
     def close(self):
@@ -289,7 +297,17 @@ def train_model(env, mode, total_timesteps=200000, load_path=None):
         print(f"Loading existing model from {load_path} for continued training...")
         model = PPO.load(load_path, env=env, tensorboard_log="./tensorboard_logs/", device="cpu")
     else:
-        model = PPO("MlpPolicy", env, verbose=1, n_steps=2048, tensorboard_log="./tensorboard_logs/", device="cpu")
+        model = PPO(
+            "MlpPolicy",
+            env,
+            verbose=1,
+            n_steps=2048,
+            tensorboard_log="./tensorboard_logs/",
+            device="cpu",
+            learning_rate=0.0003,  # 학습 속도 조정
+            batch_size=64,         # 안정성 향상
+            ent_coef=0.01          # 탐색 강화
+        )
     
     checkpoint_callback = CheckpointCallback(save_freq=50000, save_path="./checkpoints/",
                                              name_prefix=f"ppo_robot_{mode}")
@@ -311,7 +329,7 @@ def test_model(model, env, max_steps=5000):
     for step in range(max_steps):
         action, _ = model.predict(observation, deterministic=True)
         observation, reward, terminated, truncated, info = env.step(action)
-        print(f"Step {step + 1}: Joints = {observation[:6]}, Reward = {reward}, EE Pos = {env.move_group.get_current_pose().pose.position}")
+        print(f"Step {step + 1}: Joints = {observation[:6]}, Reward = {reward}, EE Pos = {info['ee_pos']}")
         if terminated:
             print(f"Reached target position {env.target_pos}")
             observation, info = env.reset()
@@ -336,13 +354,14 @@ if __name__ == "__main__":
     if args.mode == "single":
         env = CustomRobotEnv(render_mode="human")
         check_env(env)
-        model = train_model(env, "single")
+        model = train_model(env, "single", total_timesteps=200000)
         test_model(model, env)
 
     elif args.mode == "multi":
         num_cpu = 4
         env = SubprocVecEnv([make_env(urdf_path, render_mode="direct") for _ in range(num_cpu)])
-        model = train_model(env, "multi")
+        env = VecMonitor(env)  # 멀티 환경 모니터링
+        model = train_model(env, "multi", total_timesteps=1000000)  # 타임스텝 증가
         test_env = CustomRobotEnv(render_mode="human")
         timestamp = get_current_timestamp()
         model = PPO.load(f"weight/ppo_robot_obstacle_avoidance_multi_{timestamp}")
@@ -352,7 +371,7 @@ if __name__ == "__main__":
         load_path = "weight/ppo_robot_obstacle_avoidance.zip"
         env = CustomRobotEnv(render_mode="human")
         check_env(env)
-        model = train_model(env, "continue", load_path=load_path)
+        model = train_model(env, "continue", total_timesteps=200000, load_path=load_path)
         test_model(model, env)
 
     elif args.mode == "test":
