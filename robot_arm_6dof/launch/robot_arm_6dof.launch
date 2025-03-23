@@ -1,0 +1,4 @@
+<launch>
+    <!-- 조인트 상태 노드 실행 -->
+    <node name="robot_arm_6dof" pkg="robot_arm_6dof" type="robot_arm_6dof" output="screen" />
+</launch>

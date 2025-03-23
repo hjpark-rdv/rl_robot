@@ -1,0 +1,4 @@
+<launch>
+    <!-- 조인트 상태 노드 실행 -->
+    <node name="random_marker" pkg="robot_arm_6dof" type="random_marker" output="screen" />
+</launch>

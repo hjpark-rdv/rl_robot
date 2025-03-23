@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>robot_arm_6dof</name>
+  <version>0.0.1</version>
+  <description>A simple 6-DOF robot arm example for ROS Noetic</description>
+
+  <maintainer email="hjpark@rdv.ai">hyojin park</maintainer>
+  <license>MIT</license>
+
+  <!-- 빌드 의존성 -->
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+
+  <!-- 실행 의존성 -->
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <!-- 내보내기 (옵션) -->
+  <export>
+    <architecture_independent />
+  </export>
+</package>
