@@ -171,16 +171,17 @@ int main(int argc, char** argv) {
     tf2::Matrix3x3 rot_matrix_inv = rot_matrix.inverse();
     tf2::Vector3 target_vec_local = rot_matrix_inv * target_vec;
 
-    // 로컬 좌표계에서 z축과 목표 방향 간의 기울기 계산 (roll만)
-    double roll_angle = -atan2(target_vec_local.y(), target_vec_local.z()); // 증감량 부호 반전
+    // 로컬 좌표계에서 z축과 목표 방향 간의 기울기 계산
+    double roll_angle = -atan2(target_vec_local.y(), target_vec_local.z()); // roll (x축 기준)
+    double pitch_angle = atan2(target_vec_local.x(), target_vec_local.z()); // pitch (y축 기준)
 
-    ROS_INFO("Calculated roll_angle (radians): %f", roll_angle);
+    ROS_INFO("Calculated roll_angle (radians): %f, pitch_angle (radians): %f", roll_angle, pitch_angle);
 
-    // Roll만 적용 (pitch와 yaw는 0)
-    tf2::Quaternion q_roll;
-    q_roll.setRPY(roll_angle, 0.0, 0.0); // roll만 적용
-    q_roll.normalize();
-    tf2::Quaternion q_new = q_current * q_roll;
+    // Roll과 Pitch만 적용 (yaw는 0)
+    tf2::Quaternion q_roll_pitch;
+    q_roll_pitch.setRPY(roll_angle, pitch_angle, 0.0); // roll과 pitch 적용
+    q_roll_pitch.normalize();
+    tf2::Quaternion q_new = q_current * q_roll_pitch;
 
     // 회전 적용
     geometry_msgs::Pose rotate_pose = current_pose.pose;
@@ -189,14 +190,14 @@ int main(int argc, char** argv) {
     rotate_pose.orientation.z = q_new.z();
     rotate_pose.orientation.w = q_new.w();
 
-    // 2. 목표 방향으로 실제 회전 (Roll만)
+    // 2. 목표 방향으로 실제 회전 (Roll과 Pitch만)
     move_group.setPoseTarget(rotate_pose, end_effector_link);
     moveit::planning_interface::MoveGroupInterface::Plan rotate_plan;
     bool rotate_success = (move_group.plan(rotate_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    ROS_INFO("Planning to rotate (roll only) to random object1 %s", rotate_success ? "SUCCEEDED" : "FAILED");
+    ROS_INFO("Planning to rotate (roll and pitch) to random object1 %s", rotate_success ? "SUCCEEDED" : "FAILED");
 
     if (rotate_success) {
-        ROS_INFO("Executing rotation (roll only) to random object1...");
+        ROS_INFO("Executing rotation (roll and pitch) to random object1...");
         move_group.execute(rotate_plan);
         ros::Duration(1.0).sleep();
     } else {
