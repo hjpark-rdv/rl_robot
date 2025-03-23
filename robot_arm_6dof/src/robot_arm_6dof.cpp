@@ -97,8 +97,8 @@ int main(int argc, char** argv) {
     marker.scale.y = 0.03;
     marker.scale.z = 0.03;
 
-    marker.color.r = 0.0;
-    marker.color.g = 1.0;
+    marker.color.r = 1.0; // 주황색으로 설정
+    marker.color.g = 0.5;
     marker.color.b = 0.0;
     marker.color.a = 0.7;
 
@@ -167,9 +167,12 @@ int main(int argc, char** argv) {
     );
     tf2::Vector3 target_vec = (target_pos - current_pos).normalized();
 
-    // Roll 각도 계산 (x축 기준, 2배 회전 보정)
-    double roll_angle = atan2(z_axis_global.y(), z_axis_global.z()) - atan2(target_vec.y(), target_vec.z());
-    roll_angle /= 2.0; // 회전량 절반으로 조정
+    // 목표 방향 벡터를 end_effector 로컬 좌표계로 변환
+    tf2::Matrix3x3 rot_matrix_inv = rot_matrix.inverse();
+    tf2::Vector3 target_vec_local = rot_matrix_inv * target_vec;
+
+    // 로컬 좌표계에서 z축과 목표 방향 간의 기울기 계산 (roll만)
+    double roll_angle = -atan2(target_vec_local.y(), target_vec_local.z()); // 증감량 부호 반전
 
     ROS_INFO("Calculated roll_angle (radians): %f", roll_angle);
 
